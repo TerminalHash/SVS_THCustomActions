@@ -1,0 +1,32 @@
+[
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "LowMotionPlay",
+		"Args": ["NowID","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Motion",
+		"Args": ["NowID","2","0","False","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Expression",
+		"Args": ["NowID","","4"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Voice",
+		"Args": ["NowID","0","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Text",
+		"Args": ["[M]","「もう見せてるだろ。これ以上どうしろって？」","I'm already on full display here, dummy. What else do you want from me?","已经脱光了啊，还想让我给你看什么？","不然你是在看什麼？我還能給你看什麼？"]
+	}
+]

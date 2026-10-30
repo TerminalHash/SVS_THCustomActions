@@ -1,0 +1,38 @@
+[
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "LowMotionPlay",
+		"Args": ["NowID","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "CharaChange",
+		"Args": ["2","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Motion",
+		"Args": ["NowID","48","0","False","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Expression",
+		"Args": ["NowID","","20"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Voice",
+		"Args": ["NowID","sound/data/pcm/c012/000_00/000/00.unity3d","sv_012_ms_000_461"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Text",
+		"Args": ["[H]","No way, i’ll try to release [NPC_thatPersonName], if I don't fall asleep on the way...","No way, i’ll try to release [NPC_thatPersonName], if I don't fall asleep on the way...","No way, i’ll try to release [NPC_thatPersonName], if I don't fall asleep on the way...","No way, i’ll try to release [NPC_thatPersonName], if I don't fall asleep on the way..."]
+	}
+]

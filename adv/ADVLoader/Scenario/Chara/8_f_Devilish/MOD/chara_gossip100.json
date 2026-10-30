@@ -1,0 +1,38 @@
+[
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "LowMotionPlay",
+		"Args": ["NowID","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "CharaChange",
+		"Args": ["2","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Motion",
+		"Args": ["NowID","65","0","False","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Expression",
+		"Args": ["NowID","","10"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Voice",
+		"Args": ["NowID","sound/data/pcm/c008/000_00/000/00.unity3d","sv_008_ms_000_453"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Text",
+		"Args": ["[H]","Huuuh, how long will you be put in prison for that? Okay-okay, i’m joking, you lucky bastard!","Huuuh, how long will you be put in prison for that? Okay-okay, i’m joking, you lucky bastard!","Huuuh, how long will you be put in prison for that? Okay-okay, i’m joking, you lucky bastard!","Huuuh, how long will you be put in prison for that? Okay-okay, i’m joking, you lucky bastard!"]
+	}
+]

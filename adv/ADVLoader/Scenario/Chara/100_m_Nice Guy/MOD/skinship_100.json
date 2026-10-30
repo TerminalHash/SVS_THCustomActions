@@ -1,0 +1,32 @@
+[
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "LowMotionPlay",
+		"Args": ["NowID","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "CharaChange",
+		"Args": ["2","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Motion",
+		"Args": ["NowID","0","0","False","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Expression",
+		"Args": ["NowID","","33"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Text",
+		"Args": ["[M]","...Thanks?","...Thanks?","...Thanks?","...Thanks?"]
+	}
+]

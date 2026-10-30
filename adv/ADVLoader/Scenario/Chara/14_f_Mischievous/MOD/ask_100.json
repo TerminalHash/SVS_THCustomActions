@@ -1,0 +1,38 @@
+[
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "LowMotionPlay",
+		"Args": ["NowID","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "CharaChange",
+		"Args": ["2","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Motion",
+		"Args": ["NowID","66","0","False","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Expression",
+		"Args": ["NowID","","25"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Voice",
+		"Args": ["NowID","sound/data/pcm/c014/000_00/000/00.unity3d","sv_014_ms_000_475"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Text",
+		"Args": ["[H]","Well well, in that case, I won't get in the way.","Well well, in that case, I won't get in the way.","Well well, in that case, I won't get in the way.","Well well, in that case, I won't get in the way."]
+	}
+]

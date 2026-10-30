@@ -1,0 +1,38 @@
+[
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "LowMotionPlay",
+		"Args": ["NowID","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "CharaChange",
+		"Args": ["2","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Motion",
+		"Args": ["NowID","64","0","False","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Expression",
+		"Args": ["NowID","","33"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Voice",
+		"Args": ["NowID","sound/data/pcm/c210/000_00/000/00.unity3d","sv_210_ms_000_448"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Text",
+		"Args": ["[H]","Tsk, why you doing this now?..","Tsk, why you doing this now?..","Tsk, why you doing this now?..","Tsk, why you doing this now?.."]
+	}
+]

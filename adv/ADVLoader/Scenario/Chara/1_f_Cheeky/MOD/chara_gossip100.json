@@ -1,0 +1,38 @@
+[
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "LowMotionPlay",
+		"Args": ["NowID","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "CharaChange",
+		"Args": ["2","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Motion",
+		"Args": ["NowID","22","0","False","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Expression",
+		"Args": ["NowID","","10"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Voice",
+		"Args": ["NowID","sound/data/pcm/c001/000_00/000/00.unity3d","sv_001_ms_000_453"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Text",
+		"Args": ["[H]","You think, what i’m interested in your sex adventures? Maybe a little...","You think, what i’m interested in your sex adventures? Maybe a little...","You think, what i’m interested in your sex adventures? Maybe a little...","You think, what i’m interested in your sex adventures? Maybe a little..."]
+	}
+]

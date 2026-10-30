@@ -1,0 +1,38 @@
+[
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "LowMotionPlay",
+		"Args": ["NowID","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "CharaChange",
+		"Args": ["2","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Motion",
+		"Args": ["NowID","67","0","False","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Expression",
+		"Args": ["NowID","","16"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Voice",
+		"Args": ["NowID","sound/data/pcm/c013/000_00/000/00.unity3d","sv_013_ms_000_455"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Text",
+		"Args": ["[H]","H-hey, that's wrong with you? I'm dreaming or our world turned into a hentai rom-com?","H-hey, that's wrong with you? I'm dreaming or our world turned into a hentai rom-com?","H-hey, that's wrong with you? I'm dreaming or our world turned into a hentai rom-com?","H-hey, that's wrong with you? I'm dreaming or our world turned into a hentai rom-com?"]
+	}
+]

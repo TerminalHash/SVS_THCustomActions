@@ -1,0 +1,44 @@
+[
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "LowMotionPlay",
+		"Args": ["NowID","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "EventCGCameraMotion",
+		"Args": ["NowID","adv/eventcg/000_00.unity3d","munemise_camera_00","","munemise_In","FALSE","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Motion",
+		"Args": ["NowID","10002","0","False","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "ClothStateWithText",
+		"Args": ["NowID","0.8","0","1","NowID","0.8","2","1"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Expression",
+		"Args": ["NowID","","46"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Voice",
+		"Args": ["NowID","sound/data/pcm/c000/000_01/000/00.unity3d","sv_000_mr_000_061"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Text",
+		"Args": ["[H]","「......では、私の恥ずかしい姿、しっかり見ててください」","Ready? Make sure you get a good look!","......那就认真看看我这副羞耻的模样吧","......那麼，請你好好看著我難為情的樣子"]
+	}
+]

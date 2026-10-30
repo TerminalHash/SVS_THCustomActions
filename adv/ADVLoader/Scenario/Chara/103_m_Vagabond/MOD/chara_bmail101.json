@@ -1,0 +1,38 @@
+[
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "LowMotionPlay",
+		"Args": ["NowID","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "CharaChange",
+		"Args": ["2","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Motion",
+		"Args": ["NowID","83","0","False","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "ClothStateWithText",
+		"Args": ["NowID","0.1","0","2","NowID","0.1","1","2","NowID","0.1","2","2","NowID","0.1","3","2","NowID","0.1","4","2","NowID","0.1","5","2","NowID","0.1","6","2","NowID","0.1","7","2"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Expression",
+		"Args": ["NowID","","56"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Text",
+		"Args": ["[H]","Let's say I don't really have anything to hide.","Let's say I don't really have anything to hide.","Let's say I don't really have anything to hide.","Let's say I don't really have anything to hide."]
+	}
+]

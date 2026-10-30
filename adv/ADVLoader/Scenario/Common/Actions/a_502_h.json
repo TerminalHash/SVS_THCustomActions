@@ -1,0 +1,92 @@
+[
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "SetDefaultPose",
+		"Args": ["0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "SetDefaultPose",
+		"Args": ["2"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "DitherIN",
+		"Args": ["0","0.2"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "DitherIN",
+		"Args": ["2","0.2"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "EventCGSetting",
+		"Args": ["","EventCG_ea_01"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "ChangeBundle",
+		"Args": ["MainBundle","0","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "ChangeBundle",
+		"Args": ["SubBundle","2","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "CharaChange",
+		"Args": ["0","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Open",
+		"Args": ["MainBundle","special_1","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "CharaChange",
+		"Args": ["2","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Open",
+		"Args": ["SubBundle","special_2","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "HFlagON",
+		"Args": []
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Jump",
+		"Args": ["END"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Tag",
+		"Args": ["END"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Close",
+		"Args": []
+	}
+]

@@ -1,0 +1,44 @@
+[
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "LowMotionPlay",
+		"Args": ["NowID","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "CharaChange",
+		"Args": ["2","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Motion",
+		"Args": ["NowID","27","0","False","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "ClothStateWithText",
+		"Args": ["NowID","0.1","2","2","NowID","0.1","3","2"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Expression",
+		"Args": ["NowID","","19"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Voice",
+		"Args": ["NowID","sound/data/pcm/c200/000_00/000/00.unity3d","sv_200_ms_000_449"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Text",
+		"Args": ["[H]","If you’ll get them dirty with your liquids, I'll put them on your head!","If you’ll get them dirty with your liquids, I'll put them on your head!","If you’ll get them dirty with your liquids, I'll put them on your head!","If you’ll get them dirty with your liquids, I'll put them on your head!"]
+	}
+]

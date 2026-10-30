@@ -1,0 +1,44 @@
+[
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "LowMotionPlay",
+		"Args": ["NowID","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "EventCGCameraMotion",
+		"Args": ["NowID","adv/eventcg/000_00.unity3d","munemise_camera_00","","munemise_In","FALSE","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Motion",
+		"Args": ["NowID","10002","0","False","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "ClothStateWithText",
+		"Args": ["NowID","0.8","0","1","NowID","0.8","2","1"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Expression",
+		"Args": ["NowID","","46"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Voice",
+		"Args": ["NowID","sound/data/pcm/c013/000_01/000/00.unity3d","sv_013_mr_000_061"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Text",
+		"Args": ["[H]","「ふむ、それではとくとご覧あれ、ですぞ......」","Hrm, then let's have a show, eh?","唔，那就请尽情欣赏、的说......","唔姆，那麼眼睛睜大點看吧......"]
+	}
+]

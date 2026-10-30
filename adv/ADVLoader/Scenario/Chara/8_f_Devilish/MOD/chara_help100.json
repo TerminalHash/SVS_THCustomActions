@@ -1,0 +1,38 @@
+[
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "LowMotionPlay",
+		"Args": ["NowID","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "CharaChange",
+		"Args": ["2","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Motion",
+		"Args": ["NowID","5","0","False","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Expression",
+		"Args": ["NowID","","20"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Voice",
+		"Args": ["NowID","sound/data/pcm/c008/000_00/000/00.unity3d","sv_008_ms_000_461"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Text",
+		"Args": ["[H]","Nuuuuuh-uh! Not in that life!... Well, i think, it’s enough for them.","Nuuuuuh-uh! Not in that life!... Well, i think, it’s enough for them.","Nuuuuuh-uh! Not in that life!... Well, i think, it’s enough for them.","Nuuuuuh-uh! Not in that life!... Well, i think, it’s enough for them."]
+	}
+]

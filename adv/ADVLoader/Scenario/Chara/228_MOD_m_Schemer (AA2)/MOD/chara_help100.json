@@ -1,0 +1,38 @@
+[
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "LowMotionPlay",
+		"Args": ["NowID","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "CharaChange",
+		"Args": ["2","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Motion",
+		"Args": ["NowID","83","0","False","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Expression",
+		"Args": ["NowID","","14"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Voice",
+		"Args": ["NowID","sound/data/pcm/c228/000_00/000/00.unity3d","sv_228_mr_000_003"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Text",
+		"Args": ["[H]","Stop right here, let me decide... Hm... Okay, probably [NPC_thatPersonName] deserved this.","Stop right here, let me decide... Hm... Okay, probably [NPC_thatPersonName] deserved this.","Stop right here, let me decide... Hm... Okay, probably [NPC_thatPersonName] deserved this.","Stop right here, let me decide... Hm... Okay, probably [NPC_thatPersonName] deserved this."]
+	}
+]

@@ -1,0 +1,38 @@
+[
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "LowMotionPlay",
+		"Args": ["NowID","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "CharaChange",
+		"Args": ["2","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Motion",
+		"Args": ["NowID","83","0","False","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "ClothStateWithText",
+		"Args": ["NowID","0.1","0","2","NowID","0.1","1","2","NowID","0.1","2","2","NowID","0.1","3","2","NowID","0.1","4","2","NowID","0.1","5","2","NowID","0.1","6","2","NowID","0.1","7","2"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Expression",
+		"Args": ["NowID","","56"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Text",
+		"Args": ["[H]","I’m so fucking hot to you, yea? Aren't you afraid the others will burn up from my heat?","I’m so fucking hot to you, yea? Aren't you afraid the others will burn up from my heat?","I’m so fucking hot to you, yea? Aren't you afraid the others will burn up from my heat?","I’m so fucking hot to you, yea? Aren't you afraid the others will burn up from my heat?"]
+	}
+]

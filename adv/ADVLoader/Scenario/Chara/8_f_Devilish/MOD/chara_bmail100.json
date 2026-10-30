@@ -1,0 +1,44 @@
+[
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "LowMotionPlay",
+		"Args": ["NowID","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "CharaChange",
+		"Args": ["2","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Motion",
+		"Args": ["NowID","44","0","False","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "ClothStateWithText",
+		"Args": ["NowID","0.1","2","2","NowID","0.1","3","2"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Expression",
+		"Args": ["NowID","","19"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Voice",
+		"Args": ["NowID","sound/data/pcm/c008/000_00/000/00.unity3d","sv_008_ms_000_462"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Text",
+		"Args": ["[H]","You’re such a horny animal, don’t you? Keep them for yourself, but don't give them to anyone!","You’re such a horny animal, don’t you? Keep them for yourself, but don't give them to anyone!","You’re such a horny animal, don’t you? Keep them for yourself, but don't give them to anyone!","You’re such a horny animal, don’t you? Keep them for yourself, but don't give them to anyone!"]
+	}
+]

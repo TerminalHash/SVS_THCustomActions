@@ -1,0 +1,183 @@
+[
+	{
+		"ActionID": 500,
+		"CategoryID": 7,
+		"ActionName": "Show Myself",
+		"AdvanceOptions":
+		{
+			"IsButtonHidden": true,
+			"NeedAllConditions": true,
+			"ShowActionConditions":
+			{
+				"Love": ["PC",">","15"],
+				"Love": ["NPC",">","15"]
+			}
+		},
+		"IsLewdAction": true,
+		"ActionTimeCost": 10,
+		"BaseJudgeRates": [150,150,150,150,150,150,150],
+		"JudgeRates": [],
+		"FavorMoodParam": 
+		{
+			"0": {
+				"ID": 1000,
+				"Favors":
+				{
+					"0": [0,10,0,0],
+					"1": [20,5,0,0]
+				},
+				"Moods":
+				{
+					"0": [0,3,0,0,0,0,0,0,0,0],
+					"1": [0,0,0,0,0,0,3,0,0,0]
+				}
+			},
+			"1": {
+				"ID": 1001,
+				"Favors":
+				{
+					"0": [0,0,5,0],
+					"1": [0,5,0,0]
+				},
+				"Moods":
+				{
+					"0": [0,0,0,0,0,0,0,0,3,0],
+					"1": [0,3,0,0,0,0,0,0,0,0]
+				}
+			},
+			"2": {
+				"ID": 1002,
+				"Favors":
+				{
+					"0": [0,0,0,0],
+					"1": [0,0,0,0]
+				},
+				"Moods":
+				{
+					"0": [0,0,0,0,3,0,0,0,0,0],
+					"1": [0,0,0,0,0,0,0,0,3,0]
+				}
+			}
+		}
+	},
+	{
+		"ActionID": 501,
+		"CategoryID": 7,
+		"ActionName": "Show Yourself",
+		"AdvanceOptions":
+		{
+			"IsButtonHidden": true,
+			"ShowActionConditions":
+			{
+				"Love": ["NPC",">","20"]
+			}
+		},
+		"IsLewdAction": true,
+		"ActionTimeCost": 10,
+		"BaseJudgeRates": [150,100,80,20,25,80,50],
+		"JudgeRates": [],
+		"FavorMoodParam":
+		{
+			"0": {
+				"ID": 1003,
+				"Favors":
+				{
+					"0": [20,5,0,0],
+					"1": [0,10,0,0]
+				},
+				"Moods":
+				{
+					"0": [0,0,0,0,0,0,3,0,0,0],
+					"1": [0,3,0,0,0,0,0,0,0,0]
+				}
+			},
+			"1": {
+				"ID": 1004,
+				"Favors":
+				{
+					"0": [0,5,0,0],
+					"1": [0,0,5,0]
+				},
+				"Moods":
+				{
+					"0": [0,3,0,0,0,0,0,0,0,0],
+					"1": [0,0,0,0,0,0,0,0,3,0]
+				}
+			},
+			"2": {
+				"ID": 1005,
+				"Favors":
+				{
+					"0": [0,0,0,0],
+					"1": [0,0,0,0]
+				},
+				"Moods":
+				{
+					"0": [0,0,0,0,0,0,0,0,3,0],
+					"1": [0,0,0,0,3,0,0,0,0,0]
+				}
+			}
+		}
+	},
+	{
+		"ActionID": 509,
+		"CategoryID": 7,
+		"ActionName": "Ask for panties",
+		"AdvanceOptions":
+		{
+			"IsButtonHidden": true,
+			"NeedAllConditions": true,
+			"ShowActionConditions":
+			{
+				"Love": ["NPC",">=","25"],
+				"IsLover": []
+			}
+		},
+		"IsLewdAction": true,
+		"ActionTimeCost": 15,
+		"BaseJudgeRates": [150,100,80,20,25,80,50],
+		"JudgeRates": [],
+		"FavorMoodParam":
+		{
+			"0": {
+				"ID": 1027,
+				"Favors":
+				{
+					"0": [45,0,0,0],
+					"1": [15,0,0,0]
+				},
+				"Moods":
+				{
+					"0": [0,0,0,0,0,0,3,0,0,0],
+					"1": [0,3,0,0,0,0,0,0,0,0]
+				}
+			},
+			"1": {
+				"ID": 1028,
+				"Favors":
+				{
+					"0": [0,0,0,0],
+					"1": [0,0,15,0]
+				},
+				"Moods":
+				{
+					"0": [0,0,0,0,3,0,0,0,0,0],
+					"1": [0,3,0,0,0,0,0,0,0,0]
+				}
+			},
+			"2": {
+				"ID": 1029,
+				"Favors":
+				{
+					"0": [0,0,0,0],
+					"1": [0,0,0,0]
+				},
+				"Moods":
+				{
+					"0": [0,0,0,0,0,0,0,0,3,0],
+					"1": [0,0,0,0,3,0,0,0,0,0]
+				}
+			}
+		}
+	}
+]

@@ -1,0 +1,38 @@
+[
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "LowMotionPlay",
+		"Args": ["NowID","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "CharaChange",
+		"Args": ["2","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Motion",
+		"Args": ["NowID","65","0","False","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Expression",
+		"Args": ["NowID","","20"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "Voice",
+		"Args": ["NowID","sound/data/pcm/c011/000_00/000/00.unity3d","sv_011_ms_000_461"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Text",
+		"Args": ["[H]","Ahem! I don't promise that I won't take [NPC_thatPersonName] under control again.","Ahem! I don't promise that I won't take [NPC_thatPersonName] under control again.","Ahem! I don't promise that I won't take [NPC_thatPersonName] under control again.","Ahem! I don't promise that I won't take [NPC_thatPersonName] under control again."]
+	}
+]

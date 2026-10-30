@@ -1,0 +1,335 @@
+#nullable enable
+using System;
+using System.Collections.Generic;
+using SV.Chara;
+using static SVS_MAHelpers.CharaUtil;
+
+namespace SVS_MAHelpers.Actions.IgnoreMe
+{
+    /// <summary>
+    /// "Ignore me" (action 504): after the ask talk ends with YES, the asked
+    /// NPC's agreement is written into vanilla command memory as KeepHimAway
+    /// (0x4F) via <see cref="VanillaRecord"/> — the same tables the game's own
+    /// SetCommandCount writes. This service only manages the record's lifetime:
+    /// end of period, sex/group reset, and the debug-only talk-start reset.
+    /// <para>
+    /// The only NPC-behavior touch is the stateless ThinkingManager pick
+    /// backstop (see <c>Hooks</c>): a recorded NPC's PC pick is rewritten to -1
+    /// ("no target"). No blind flags, no talk veto.
+    /// </para>
+    /// </summary>
+    internal static class IgnoreService
+    {
+        private sealed class IgnoreEntry
+        {
+            public int NpcIdx = -1;
+            public int PcIdx = -1;
+            public VanillaRecord.SideUnits NpcUnits = new();
+            public VanillaRecord.SideUnits PcUnits = new();
+            public string Reason = "";
+            // H-episode latch: set on the first tick that observes live H flags,
+            // cleared when they drop. While latched, the TalkManager scan runs
+            // at most every HRescanInterval.
+            public bool WasInH;
+            public DateTime HLastScan;
+        }
+
+        private static readonly Dictionary<int, IgnoreEntry> _entries = new();
+
+        internal static void Schedule(List<AI>? participants, string reason, AskState ask)
+        {
+            try
+            {
+                List<AI>? copy = participants != null ? new List<AI>(participants) : null;
+                // Capture before queuing: TriggerService settles this action's
+                // ask as soon as the handler returns.
+                bool refused = ask.TakeRefused();
+                Plugin.Info($"[IgnoreMe] Trigger queued (reason={reason}, participants={(copy == null ? "unknown" : copy.Count.ToString())}, refused={refused})");
+                TriggerService.RunOnMainThread(() =>
+                {
+                    try { DoApply(copy, reason, refused); }
+                    catch (Exception ex) { Plugin.Log.LogWarning($"[IgnoreMe] DoApply failed: {ex.Message}"); }
+                });
+            }
+            catch (Exception ex) { Plugin.Log.LogWarning($"[IgnoreMe] Schedule failed: {ex.Message}"); }
+        }
+
+        private static void DoApply(List<AI>? participants, string reason, bool refused)
+        {
+            if (!TriggerService.TryGetPairTargets(participants, out var pc, out var npcTargets) || pc == null)
+            {
+                Plugin.Info($"[IgnoreMe] No ignore ({reason}): {DescribeAll(participants)}.");
+                return;
+            }
+
+            // NO (answer 1) / 難聴 (answer 2): nothing is recorded.
+            if (refused)
+            {
+                Plugin.Info($"[IgnoreMe] Suppressed ({reason}): NO/難聴 answer in action={ActionVars.IgnoreActionNo}.");
+                return;
+            }
+            Plugin.Info($"[IgnoreMe] Participants: {DescribeAll(participants)}");
+
+            int pcIdx = IdxOf(pc);
+            if (pcIdx < 0) return;
+
+            int applied = 0;
+            foreach (var ai in npcTargets)
+            {
+                try
+                {
+                    int idx = ai.charaData.charasGameParam.Index;
+                    if (idx < 0 || idx == pcIdx) continue;
+                    // The asked NPC's own answer, exactly as vanilla
+                    // SetCommandCount files the passive side's judgeAnswer
+                    // (0 = agreed; 1 = NO; else ambiguous bucket).
+                    int answer = 0;
+                    try { answer = ai.charaData.charasGameParam.judgeAnswer; } catch { }
+                    VanillaRecord.Record(idx, pcIdx, answer, out var npcUnits, out var pcUnits);
+                    if (AddedUnits(npcUnits) + AddedUnits(pcUnits) <= 0)
+                    {
+                        Plugin.Log.LogWarning($"[IgnoreMe] NPC idx={idx}: record added nothing; not tracked.");
+                        continue;
+                    }
+                    lock (_entries)
+                    {
+                        if (!_entries.TryGetValue(idx, out var e))
+                        {
+                            e = new IgnoreEntry { NpcIdx = idx, PcIdx = pcIdx };
+                            _entries[idx] = e;
+                        }
+                        Accumulate(e.NpcUnits, npcUnits);
+                        Accumulate(e.PcUnits, pcUnits);
+                        e.Reason = reason;
+                    }
+                    applied++;
+                }
+                catch (Exception ex) { Plugin.Log.LogWarning($"[IgnoreMe] Record idx failed: {ex.Message}"); }
+            }
+            string period = Utils.TryReadPeriodLabel();
+            Plugin.Info($"[IgnoreMe] Done: {applied}/{npcTargets.Count} NPC(s) recorded ignoring PC idx={pcIdx} for the rest of this period ({period}) (reason={reason}).");
+        }
+
+        private static int AddedUnits(VanillaRecord.SideUnits u)
+        {
+            int n = 0;
+            try
+            {
+                foreach (var t in u.Tables)
+                    n += t.Count + t.Yes + t.No + t.Ambiguous;
+            }
+            catch { }
+            return n;
+        }
+
+        private static void Accumulate(VanillaRecord.SideUnits into, VanillaRecord.SideUnits add)
+        {
+            try
+            {
+                for (int i = 0; i < into.Tables.Length && i < add.Tables.Length; i++)
+                {
+                    into.Tables[i].Count += add.Tables[i].Count;
+                    into.Tables[i].Yes += add.Tables[i].Yes;
+                    into.Tables[i].No += add.Tables[i].No;
+                    into.Tables[i].Ambiguous += add.Tables[i].Ambiguous;
+                }
+            }
+            catch { }
+        }
+
+        // Period shift: the ignore lasts until the end of the period.
+        internal static void OnPeriodChanged(string what)
+        {
+            try
+            {
+                // Re-baseline the tick backstop FIRST — even with no entries, or
+                // a later record would compare against a stale period.
+                try
+                {
+                    string label = Utils.TryReadPeriodLabel();
+                    if (!string.IsNullOrEmpty(label) && label != "unknown-period")
+                        lock (_entries) { _lastPeriodLabel = label; }
+                }
+                catch { }
+                List<IgnoreEntry> dropped;
+                lock (_entries)
+                {
+                    if (_entries.Count == 0) return;
+                    dropped = new List<IgnoreEntry>(_entries.Values);
+                    _entries.Clear();
+                }
+                Plugin.Info($"[IgnoreMe] Period shift '{what}': retracting {dropped.Count} ignore record(s) — NPC(s) will notice the PC again.");
+                foreach (var e in dropped)
+                {
+                    try { VanillaRecord.Retract(e.NpcIdx, e.PcIdx, e.NpcUnits, e.PcUnits); }
+                    catch (Exception ex) { Plugin.Log.LogWarning($"[IgnoreMe] Retract idx={e.NpcIdx} failed: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { Plugin.Log.LogWarning($"[IgnoreMe] OnPeriodChanged failed: {ex.Message}"); }
+        }
+
+        // Talk-start reset (debug-only, gated by ClearOnTalkStart).
+        internal static void ClearPairOnTalkStart(List<AI>? participants)
+        {
+            try
+            {
+                bool enabled = false;
+                try { enabled = Plugin.ClearOnTalkStart.Value; } catch { return; }
+                if (!enabled) return;
+                if (!TriggerService.TryGetPairTargets(participants, out var pc, out var npcs) || pc == null)
+                    return;
+                int pcIdx = IdxOf(pc);
+                if (pcIdx < 0) return;
+                List<IgnoreEntry> cleared = new();
+                lock (_entries)
+                {
+                    foreach (var ai in npcs)
+                    {
+                        int idx = IdxOf(ai);
+                        if (idx < 0 || idx == pcIdx) continue;
+                        if (_entries.TryGetValue(idx, out var e) && e != null && e.PcIdx == pcIdx)
+                        {
+                            _entries.Remove(idx);
+                            cleared.Add(e);
+                        }
+                    }
+                }
+                foreach (var e in cleared)
+                {
+                    Plugin.Info($"[IgnoreMe] NPC idx={e.NpcIdx} record retracted at talk start with PC idx={pcIdx} ({e.Reason}).");
+                    try { VanillaRecord.Retract(e.NpcIdx, e.PcIdx, e.NpcUnits, e.PcUnits); }
+                    catch (Exception ex) { Plugin.Log.LogWarning($"[IgnoreMe] Retract idx={e.NpcIdx} failed: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { Plugin.Log.LogWarning($"[IgnoreMe] ClearPairOnTalkStart failed: {ex.Message}"); }
+        }
+
+        // Per-frame watch: retracts records whose NPC is in an H flow with its
+        // PC. Vanilla has no sex/group reset, so the spec's reset is done here
+        // by polling the exact flags the H prologue holds (isHPlay solo,
+        // isEveryoneHPlay group) while they are live. Cheap: nothing to do when
+        // no entries exist.
+        internal static void EnforceActive()
+        {
+            try { WatchPeriodLabel(); } catch { }
+            List<IgnoreEntry> snapshot;
+            lock (_entries)
+            {
+                if (_entries.Count == 0) return;
+                snapshot = new List<IgnoreEntry>(_entries.Values);
+            }
+            foreach (var e in snapshot)
+            {
+                try { EnforceOne(e); }
+                catch (Exception ex) { Plugin.Log.LogWarning($"[IgnoreMe] Enforce idx={e.NpcIdx} failed: {ex.Message}"); }
+            }
+        }
+
+        // Rescan interval while a recorded NPC stays in an H flow without its
+        // PC: the PC could still join late (group forming mid-scene).
+        private static readonly TimeSpan HRescanInterval = TimeSpan.FromSeconds(2);
+
+        private static void EnforceOne(IgnoreEntry e)
+        {
+            AI? npc = null;
+            try { npc = FindAI(e.NpcIdx); } catch { }
+            if (npc == null)
+            {
+                // AI gone: retract via the chara table if memory is still
+                // reachable, then drop bookkeeping either way.
+                try { VanillaRecord.Retract(e.NpcIdx, e.PcIdx, e.NpcUnits, e.PcUnits); }
+                catch { }
+                lock (_entries) _entries.Remove(e.NpcIdx);
+                Plugin.Info($"[IgnoreMe] NPC idx={e.NpcIdx} gone; ignore record dropped.");
+                return;
+            }
+            // Cheap poll first: two bools, no scan, no log.
+            bool solo = false, group = false;
+            try
+            {
+                var p = npc.charaData.charasGameParam;
+                if (p != null)
+                {
+                    try { solo = p.isHPlay; } catch { }
+                    try { group = p.isEveryoneHPlay; } catch { }
+                }
+            }
+            catch { return; }
+            if (!solo && !group)
+            {
+                e.WasInH = false;
+                return;
+            }
+            bool fresh = !e.WasInH;
+            if (!fresh && (DateTime.UtcNow - e.HLastScan) < HRescanInterval) return;
+            e.WasInH = true;
+            e.HLastScan = DateTime.UtcNow;
+            bool withPc = false;
+            try { withPc = Utils.SharesActiveTalkWith(npc, e.PcIdx); } catch { }
+            if (!withPc)
+            {
+                // Logged once per episode; silent rescans keep watching in case
+                // the PC joins late.
+                if (fresh) Plugin.Info($"[IgnoreMe] NPC idx={e.NpcIdx} is in H (solo={solo} group={group}) without its PC; record kept.");
+                return;
+            }
+            lock (_entries) _entries.Remove(e.NpcIdx);
+            Plugin.Info($"[IgnoreMe] NPC idx={e.NpcIdx} record retracted after {(group ? "group action" : "sex")} with PC idx={e.PcIdx} ({e.Reason}).");
+            try { VanillaRecord.Retract(e.NpcIdx, e.PcIdx, e.NpcUnits, e.PcUnits); }
+            catch (Exception ex) { Plugin.Log.LogWarning($"[IgnoreMe] Retract idx={e.NpcIdx} failed: {ex.Message}"); }
+        }
+
+        // Pick-backstop worker: when the thinker is a recorded NPC and its pick
+        // is its PC, the pick is rewritten to -1 ("no target").
+        internal static void RewritePick(object? actorObj, object? commandObj, ref int resultIdx)
+        {
+            try
+            {
+                if (actorObj == null || resultIdx < 0) return;
+                int actorIdx = -1;
+                try { actorIdx = Utils.ReadActorIndex(actorObj); } catch { return; }
+                if (actorIdx < 0) return;
+                IgnoreEntry? e;
+                lock (_entries)
+                {
+                    if (!_entries.TryGetValue(actorIdx, out e)) return;
+                    if (e == null) return;
+                }
+                if (resultIdx != e.PcIdx) return;
+                resultIdx = -1;
+                int cmdId = -1;
+                try { cmdId = Convert.ToInt32(commandObj); } catch { }
+                Plugin.Info($"[IgnoreMe] NPC idx={actorIdx} pick rewritten: PC idx={e.PcIdx} -> none (cmd={cmdId}, {e.Reason}).");
+            }
+            catch { }
+        }
+
+        // Tick watch for the period scope. SimulationManager.mode is the only
+        // period signal available to the tick: a label change retracts every
+        // record. A transition passes through intermediate labels; the first
+        // change does the work and the following ones only re-baseline.
+        // (There are no shift hooks anymore.) First sighting only sets the base.
+        private static string _lastPeriodLabel = "";
+
+        private static void WatchPeriodLabel()
+        {
+            try
+            {
+                string label = Utils.TryReadPeriodLabel();
+                if (string.IsNullOrEmpty(label) || label == "unknown-period") return;
+                bool changed = false;
+                string prev = "";
+                lock (_entries)
+                {
+                    prev = _lastPeriodLabel;
+                    if (string.IsNullOrEmpty(prev)) { _lastPeriodLabel = label; return; }
+                    if (!string.Equals(prev, label, StringComparison.Ordinal)) changed = true;
+                }
+                if (!changed) return;
+                Plugin.Info($"[IgnoreMe] Period changed '{prev}'->'{label}'; retracting.");
+                OnPeriodChanged("tick:" + label);
+            }
+            catch { }
+        }
+    }
+}
