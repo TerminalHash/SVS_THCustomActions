@@ -42,9 +42,9 @@ namespace SVS_MAHelpers
         {
             Log = base.Log;
 
-            VerboseLog = Config.Bind("Logging", "VerboseLog", false, "File-only info logs (off by default; nothing is shown on screen).");
-            ClearOnTalkStart = Config.Bind("Behavior", "ClearOnTalkStart", false,
-                "Debug-only: when true, starting a talk with the ignoring NPC retracts the ignore record (talks run untouched either way). Off by default.");
+            VerboseLog = Config.Bind("Logging", "Debug log", false, "Toggle additional lines for debug purpose.");
+            ClearOnTalkStart = Config.Bind("Behavior", "Clear on dialogue start", false,
+                "Debug-only: when true, starting a talk with the ignoring NPC retracts the ignore record.");
             UseTraitSuffix = Config.Bind("Behavior", "Use scenarios with suffix _traitxxx", false,
                 "For quick tests of unique dialogue lines or using non-hardcoded trait lines");
 
