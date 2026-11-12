@@ -32,49 +32,46 @@ namespace SVS_MAHelpers.Actions.MoveAway
 
         private static readonly Dictionary<string, LinkRec> _links = new();
 
-        internal static void RegisterLink(object? linkObj)
+        internal static void RegisterLink(Pathfinding.NodeLink2? link)
         {
             try
             {
-                if (linkObj == null) return;
-                var t = linkObj.GetType();
+                if (link == null) return;
                 string n = "?";
-                try
-                {
-                    var go = t.GetProperty("gameObject")?.GetValue(linkObj, null);
-                    var nm = go?.GetType().GetProperty("name")?.GetValue(go, null) as string;
-                    if (!string.IsNullOrEmpty(nm)) n = nm;
-                }
-                catch { }
+                try { n = link.gameObject?.name ?? "?"; } catch { }
+
                 var rec = new LinkRec { Name = n };
                 try
                 {
-                    var st = t.GetProperty("StartTransform")?.GetValue(linkObj, null);
-                    var stp = st?.GetType().GetProperty("position")?.GetValue(st, null);
-                    if (stp != null) { rec.Start = (UnityEngine.Vector3)stp; rec.HasStart = true; }
+                    var st = link.StartTransform;
+                    if (st != null) { rec.Start = st.position; rec.HasStart = true; }
                 }
                 catch { }
                 try
                 {
-                    var et = t.GetProperty("EndTransform")?.GetValue(linkObj, null);
-                    var etp = et?.GetType().GetProperty("position")?.GetValue(et, null);
-                    if (etp != null) { rec.End = (UnityEngine.Vector3)etp; rec.HasEnd = true; }
+                    var et = link.EndTransform;
+                    if (et != null) { rec.End = et.position; rec.HasEnd = true; }
                 }
                 catch { }
-                if (!rec.HasStart && !rec.HasEnd) return;
-                try
+                if (!rec.HasStart || !rec.HasEnd)
                 {
-                    var tr = t.GetProperty("transform")?.GetValue(linkObj, null);
-                    var tp = tr?.GetType().GetProperty("position")?.GetValue(tr, null);
-                    if (tp != null)
+                    try
                     {
-                        var p = (UnityEngine.Vector3)tp;
+                        var p = link.transform.position;
                         if (!rec.HasStart) { rec.Start = p; rec.HasStart = true; }
                         if (!rec.HasEnd) { rec.End = p; rec.HasEnd = true; }
                     }
+                    catch { }
                 }
-                catch { }
-                string key = $"{n}@{(rec.HasStart ? $"{rec.Start.x:F0},{rec.Start.y:F0},{rec.Start.z:F0}" : "?")}";
+                if (!rec.HasStart || !rec.HasEnd) return;
+                // Both endpoints must be real and distinct. A link whose
+                // endpoints collapsed to one point is a positional artifact,
+                // not a door, and would poison every exit-pairing heuristic.
+                float dx = rec.End.x - rec.Start.x;
+                float dy = rec.End.y - rec.Start.y;
+                float dz = rec.End.z - rec.Start.z;
+                if (dx * dx + dy * dy + dz * dz < 0.0001f) return;
+                string key = $"{n}@{rec.Start.x:F0},{rec.Start.y:F0},{rec.Start.z:F0}";
                 lock (_links)
                 {
                     if (!_links.ContainsKey(key)) _links[key] = rec;
@@ -126,8 +123,16 @@ namespace SVS_MAHelpers.Actions.MoveAway
 
         // Previous-map tracking (key: charasGameParam.Index): where each NPC was
         // when its talk STARTED (recorded by the Talk Start hook — NPCs only walk
-        // to the PC room afterwards) = the map to send them back to.
-        private static readonly Dictionary<int, int> _startMaps = new();
+        // to the PC room afterwards) = the map to send them back to. Timestamped
+        // and pruned so a long session cannot grow the map without bound.
+        private sealed class StartMap
+        {
+            public int Map;
+            public DateTime Utc;
+        }
+
+        private static readonly Dictionary<int, StartMap> _startMaps = new();
+        private static readonly TimeSpan StartMapMaxAge = TimeSpan.FromHours(6);
 
         internal static void NoteTalkStart(List<AI> charas)
         {
@@ -142,12 +147,105 @@ namespace SVS_MAHelpers.Actions.MoveAway
                         int idx = ai.charaData.charasGameParam.Index;
                         var bc = ai.BehaviourCtrl;
                         if (bc == null) continue;
-                        _startMaps[idx] = bc.NowMapID;
+                        lock (_startMaps)
+                            _startMaps[idx] = new StartMap { Map = bc.NowMapID, Utc = DateTime.UtcNow };
                     }
                     catch { }
                 }
             }
             catch { }
+        }
+
+        private static void PruneStartMaps()
+        {
+            DateTime cutoff = DateTime.UtcNow - StartMapMaxAge;
+            lock (_startMaps)
+            {
+                List<int> gone = new();
+                foreach (var kv in _startMaps)
+                    if (kv.Value == null || kv.Value.Utc < cutoff) gone.Add(kv.Key);
+                foreach (var k in gone) _startMaps.Remove(k);
+            }
+        }
+
+        // UroUroPointMove/SetCharaMapMove return void, so the only proof of a
+        // move is the NPC's map on a later frame. A request stays pending until
+        // the map actually changes or the timeout expires.
+        private sealed class PendingMove
+        {
+            public AI? Ai;
+            public int FromMap;
+            public int DestMap;
+            public DateTime DeadlineUtc;
+        }
+
+        private static readonly List<PendingMove> _pendingMoves = new();
+        private static readonly TimeSpan MoveVerifyTimeout = TimeSpan.FromSeconds(10);
+
+        private static void QueueMoveVerification(AI ai, int fromMap, int destMap)
+        {
+            lock (_pendingMoves)
+            {
+                _pendingMoves.RemoveAll(p => ReferenceEquals(p.Ai, ai));
+                _pendingMoves.Add(new PendingMove
+                {
+                    Ai = ai,
+                    FromMap = fromMap,
+                    DestMap = destMap,
+                    DeadlineUtc = DateTime.UtcNow + MoveVerifyTimeout,
+                });
+            }
+        }
+
+        // Per-frame verification of requested moves, plus start-map pruning.
+        internal static void EnforceMoves()
+        {
+            List<PendingMove> due;
+            lock (_pendingMoves)
+                due = _pendingMoves.Count > 0 ? new List<PendingMove>(_pendingMoves) : new List<PendingMove>();
+            foreach (var p in due)
+            {
+                bool done = false;
+                try
+                {
+                    var ai = p.Ai;
+                    if (ai == null) done = true;
+                    else
+                    {
+                        var bc = ai.BehaviourCtrl;
+                        if (bc == null) done = true;
+                        else
+                        {
+                            int now = bc.NowMapID;
+                            if (now != p.FromMap)
+                            {
+                                Plugin.Info($"[MoveAway] Verified NPC idx={IdxOf(ai)} left map {p.FromMap} (now {now}, wanted {p.DestMap}).");
+                                done = true;
+                            }
+                            else if (DateTime.UtcNow >= p.DeadlineUtc)
+                            {
+                                Plugin.Log.LogWarning($"[MoveAway] Move not observed: NPC idx={IdxOf(ai)} still on map {p.FromMap} (wanted {p.DestMap}).");
+                                done = true;
+                            }
+                        }
+                    }
+                }
+                catch { done = true; }
+                if (done)
+                {
+                    lock (_pendingMoves) _pendingMoves.Remove(p);
+                }
+            }
+            PruneStartMaps();
+        }
+
+        // A different save object was loaded: previous maps and in-flight move
+        // requests belong to the previous save's NPCs.
+        internal static void ResetState()
+        {
+            lock (_startMaps) _startMaps.Clear();
+            lock (_pendingMoves) _pendingMoves.Clear();
+            Plugin.Info("[MoveAway] Session map state reset for new save.");
         }
 
         private static void DoMove(List<AI>? participants, string reason, bool refused)
@@ -182,7 +280,7 @@ namespace SVS_MAHelpers.Actions.MoveAway
                 catch (Exception ex) { Plugin.Log.LogWarning($"[MoveAway] MoveOne failed: {ex.Message}"); }
             }
             moveSw.Stop();
-            Plugin.Info($"[MoveAway] Done: {moved}/{targets.Count} NPC(s) moved out of room {roomMap} (took {moveSw.ElapsedMilliseconds}ms).");
+            Plugin.Info($"[MoveAway] Done: {moved}/{targets.Count} NPC move(s) requested out of room {roomMap} (took {moveSw.ElapsedMilliseconds}ms; verified on later ticks).");
         }
 
         // Room + targets: pair scoping (PC must be one of slots 0-1) comes from
@@ -230,7 +328,7 @@ namespace SVS_MAHelpers.Actions.MoveAway
                 var parts = new List<string>();
                 foreach (var m in ids)
                 {
-                    string kind = "?", nm = "?", room = "?", dim = "?", rtype = "?";
+                    string kind = "?", nm = "?", room = "?", dim = "?";
                     try
                     {
                         var table = MapManager.mapListTable;
@@ -253,19 +351,7 @@ namespace SVS_MAHelpers.Actions.MoveAway
                         if (mm != null) dim = mm.Is2DMap(m) ? "2D" : "3D";
                     }
                     catch { }
-                    try
-                    {
-                        var mm = MapManager.Instance;
-                        var rtProp = mm?.GetType().GetProperty("roomTypeTable",
-                            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic
-                            | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Static);
-                        var rt = rtProp?.GetValue(mm, null);
-                        var getItem = rt?.GetType().GetMethod("get_Item", new[] { typeof(int) });
-                        var val = getItem?.Invoke(rt, new object[] { m });
-                        if (val != null) rtype = val.ToString() ?? "?";
-                    }
-                    catch { }
-                    parts.Add($"{m}[kind={kind} room={room} {dim} rtype={rtype} name={nm}]");
+                    parts.Add($"{m}[kind={kind} room={room} {dim} name={nm}]");
                 }
                 Plugin.Info("[MoveAway] Map table: " + string.Join(" ", parts.ToArray()));
             }
@@ -278,7 +364,9 @@ namespace SVS_MAHelpers.Actions.MoveAway
             try
             {
                 int idx = ai.charaData.charasGameParam.Index;
-                if (_startMaps.TryGetValue(idx, out var p)) prev = p;
+                StartMap? sm = null;
+                lock (_startMaps) _startMaps.TryGetValue(idx, out sm);
+                if (sm != null && (DateTime.UtcNow - sm.Utc) <= StartMapMaxAge) prev = sm.Map;
             }
             catch { }
             if (prev >= 0 && prev != roomMap)
@@ -649,7 +737,8 @@ namespace SVS_MAHelpers.Actions.MoveAway
             try
             {
                 MapManager.UroUroPointMove(bc, dest, -1, null);
-                Plugin.Info($"[MoveAway] NPC moved: map {roomMap} -> {dest} (manager-resolved)");
+                QueueMoveVerification(ai, roomMap, dest);
+                Plugin.Info($"[MoveAway] NPC move requested: map {roomMap} -> {dest} (manager-resolved; verifying).");
                 return true;
             }
             catch (Exception ex) { Plugin.Info($"[MoveAway] UroUroPointMove failed, trying point scan: {ex.GetType().Name}: {ex.Message}"); }
@@ -706,7 +795,8 @@ namespace SVS_MAHelpers.Actions.MoveAway
                     try { target.type = 0; } catch { }
                     try { target.job = -1; } catch { }
                     MapManager.SetCharaMapMove(0, bc, target, false);
-                    Plugin.Info($"[MoveAway] NPC moved: map {roomMap} -> {dest} (point {usedIndex})");
+                    QueueMoveVerification(ai, roomMap, dest);
+                    Plugin.Info($"[MoveAway] NPC move requested: map {roomMap} -> {dest} (point {usedIndex}; verifying).");
                     return true;
                 }
                 catch (Exception ex) { Plugin.Log.LogWarning($"[MoveAway] SetCharaMapMove failed: {ex.GetType().Name}: {ex.Message}"); }

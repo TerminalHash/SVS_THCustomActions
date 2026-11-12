@@ -16,6 +16,7 @@ namespace SVS_MAHelpers
     // and a wrong name would silently prevent loading.
     [BepInPlugin(GUID, PLUGIN_NAME, VERSION)]
     [BepInDependency(ActionVars.MoreActionsGuid, BepInDependency.DependencyFlags.HardDependency)]
+    [BepInDependency(AdditionalDataStore.PluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
     public class Plugin : BasePlugin
     {
         public const string PLUGIN_NAME = "SVS_MAHelpers";
@@ -33,6 +34,10 @@ namespace SVS_MAHelpers
         // the ignoring NPC retracts the record (talks run untouched either way).
         public static ConfigEntry<bool> ClearOnTalkStart = null!;
 
+        // Scenario Swap test setting from the plugin doc. Enables the numeric
+        // _traitxxx variant suffix for traits that have no hardcoded suffix.
+        public static ConfigEntry<bool> UseTraitSuffix = null!;
+
         public override void Load()
         {
             Log = base.Log;
@@ -40,6 +45,8 @@ namespace SVS_MAHelpers
             VerboseLog = Config.Bind("Logging", "VerboseLog", false, "File-only info logs (off by default; nothing is shown on screen).");
             ClearOnTalkStart = Config.Bind("Behavior", "ClearOnTalkStart", false,
                 "Debug-only: when true, starting a talk with the ignoring NPC retracts the ignore record (talks run untouched either way). Off by default.");
+            UseTraitSuffix = Config.Bind("Behavior", "Use scenarios with suffix _traitxxx", false,
+                "For quick tests of unique dialogue lines or using non-hardcoded trait lines");
 
             try { Hooks.PatchAll(); }
             catch (Exception ex) { Log.LogWarning($"[Hooks] Setup failed: {ex}"); }
@@ -47,15 +54,29 @@ namespace SVS_MAHelpers
             try { RegisterTriggers(); }
             catch (Exception ex) { Log.LogWarning($"[Trigger] Registration failed: {ex}"); }
 
-            // Per-frame enforcers: clothing strip re-apply, IgnoreMe H-watch.
+            // Per-frame enforcers: clothing strip re-apply, IgnoreMe H-watch,
+            // MoveAway deferred move verification.
             try
             {
                 TriggerService.RegisterTick(ClothingService.EnforceActive);
                 TriggerService.RegisterTick(IgnoreService.EnforceActive);
+                TriggerService.RegisterTick(MoveAwayService.EnforceMoves);
             }
             catch (Exception ex) { Log.LogWarning($"[Trigger] Tick registration failed: {ex}"); }
 
-            Info($"{PLUGIN_NAME} v{VERSION} loaded. Actions: 503/504/505/506/507/508/509 (502 reserved).");
+            // A different save object in the same process must not reuse the
+            // previous save's strips, holds, ignores, maps or asks.
+            try
+            {
+                SaveGeneration.Register(ClothingService.ResetState);
+                SaveGeneration.Register(PantiesLedger.Reset);
+                SaveGeneration.Register(IgnoreService.ResetState);
+                SaveGeneration.Register(MoveAwayService.ResetState);
+                SaveGeneration.Register(TriggerService.ResetAsks);
+            }
+            catch (Exception ex) { Log.LogWarning($"[Save] Reset registration failed: {ex}"); }
+
+            Info($"{PLUGIN_NAME} v{VERSION} loaded. Actions: 503/504/505/506/507/508/509/510 (502 reserved).");
         }
 
         private static void RegisterTriggers()
@@ -80,6 +101,9 @@ namespace SVS_MAHelpers
 
             TriggerService.RegisterTrigger(ActionVars.LoveUnderwearActionNo, ActionVars.LoveUnderwearAdvName,
                 (charas, reason, ask) => ClothingService.ScheduleUnderwear(charas, reason, ActionVars.LoveUnderwearActionNo, ask));
+
+            TriggerService.RegisterTrigger(ActionVars.ReturnPantiesActionNo, ActionVars.ReturnPantiesAdvName,
+                (charas, reason, ask) => ClothingService.ScheduleReturn(charas, reason, ask));
 
             // 502 Have3P is reserved (Actions/Have3P) and intentionally not
             // registered in this iteration.

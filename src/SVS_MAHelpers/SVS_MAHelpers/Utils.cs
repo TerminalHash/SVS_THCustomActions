@@ -23,23 +23,20 @@ namespace SVS_MAHelpers
             catch { return -1; }
         }
 
-        /// <summary>Best-effort label of the current simulation period.</summary>
+        /// <summary>
+        /// Best-effort label of the current simulation period. Transitional
+        /// enum values (e.g. <c>RoomMorning_SimMorning</c>) contain '_' and are
+        /// not stable periods; callers must skip them.
+        /// </summary>
         internal static string TryReadPeriodLabel()
         {
             try
             {
-                object? sim = null;
-                try { sim = Manager.SimulationManager.Instance; } catch { }
+                var sim = Manager.SimulationManager.Instance;
                 if (sim == null) return "unknown-period";
-                try
-                {
-                    var modeProp = sim.GetType().GetProperty("mode");
-                    object? modeVal = null;
-                    try { modeVal = modeProp?.GetValue(sim, null); } catch { }
-                    if (modeVal != null) return "mode-" + modeVal;
-                }
-                catch { }
-                return "unknown-period";
+                // Public Mode property (SimulationMode), not the lowercase
+                // native field. Transitional values still pass here.
+                return "mode-" + sim.Mode;
             }
             catch { return "unknown-period"; }
         }

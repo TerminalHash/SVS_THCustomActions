@@ -32,6 +32,10 @@ namespace SVS_MAHelpers.Actions.IgnoreMe
             // at most every HRescanInterval.
             public bool WasInH;
             public DateTime HLastScan;
+            // Scope ended, but the retraction could not reach the memory/tables
+            // yet. The entry is kept and retried; it is never dropped first.
+            public bool PendingRetract;
+            public DateTime RetractLastUtc = DateTime.MinValue;
         }
 
         private static readonly Dictionary<int, IgnoreEntry> _entries = new();
@@ -100,6 +104,10 @@ namespace SVS_MAHelpers.Actions.IgnoreMe
                         }
                         Accumulate(e.NpcUnits, npcUnits);
                         Accumulate(e.PcUnits, pcUnits);
+                        // A fresh record revives the entry; any units still
+                        // pending from an earlier scope remain tracked and will
+                        // be retracted together at the next scope end.
+                        e.PendingRetract = false;
                         e.Reason = reason;
                     }
                     applied++;
@@ -137,6 +145,30 @@ namespace SVS_MAHelpers.Actions.IgnoreMe
             catch { }
         }
 
+        private static readonly TimeSpan RetractRetry = TimeSpan.FromSeconds(5);
+
+        // Attempts the exact retraction. The entry is removed only after the
+        // memory and command tables were reachable; otherwise it stays pending
+        // and a later tick retries, so a transition/unload cannot lose it.
+        private static bool TryRetract(IgnoreEntry e)
+        {
+            e.RetractLastUtc = DateTime.UtcNow;
+            bool ok = false;
+            try { ok = VanillaRecord.Retract(e.NpcIdx, e.PcIdx, e.NpcUnits, e.PcUnits); }
+            catch (Exception ex) { Plugin.Log.LogWarning($"[IgnoreMe] Retract idx={e.NpcIdx} failed: {ex.Message}"); }
+            if (!ok)
+            {
+                Plugin.Info($"[IgnoreMe] Retract idx={e.NpcIdx} deferred; record kept for retry.");
+                return false;
+            }
+            lock (_entries)
+            {
+                if (_entries.TryGetValue(e.NpcIdx, out var cur) && ReferenceEquals(cur, e))
+                    _entries.Remove(e.NpcIdx);
+            }
+            return true;
+        }
+
         // Period shift: the ignore lasts until the end of the period.
         internal static void OnPeriodChanged(string what)
         {
@@ -151,19 +183,15 @@ namespace SVS_MAHelpers.Actions.IgnoreMe
                         lock (_entries) { _lastPeriodLabel = label; }
                 }
                 catch { }
-                List<IgnoreEntry> dropped;
+                List<IgnoreEntry> due;
                 lock (_entries)
                 {
                     if (_entries.Count == 0) return;
-                    dropped = new List<IgnoreEntry>(_entries.Values);
-                    _entries.Clear();
+                    due = new List<IgnoreEntry>(_entries.Values);
+                    foreach (var e in due) e.PendingRetract = true;
                 }
-                Plugin.Info($"[IgnoreMe] Period shift '{what}': retracting {dropped.Count} ignore record(s) — NPC(s) will notice the PC again.");
-                foreach (var e in dropped)
-                {
-                    try { VanillaRecord.Retract(e.NpcIdx, e.PcIdx, e.NpcUnits, e.PcUnits); }
-                    catch (Exception ex) { Plugin.Log.LogWarning($"[IgnoreMe] Retract idx={e.NpcIdx} failed: {ex.Message}"); }
-                }
+                Plugin.Info($"[IgnoreMe] Period shift '{what}': retracting {due.Count} ignore record(s) — NPC(s) will notice the PC again.");
+                foreach (var e in due) TryRetract(e);
             }
             catch (Exception ex) { Plugin.Log.LogWarning($"[IgnoreMe] OnPeriodChanged failed: {ex.Message}"); }
         }
@@ -189,7 +217,7 @@ namespace SVS_MAHelpers.Actions.IgnoreMe
                         if (idx < 0 || idx == pcIdx) continue;
                         if (_entries.TryGetValue(idx, out var e) && e != null && e.PcIdx == pcIdx)
                         {
-                            _entries.Remove(idx);
+                            e.PendingRetract = true;
                             cleared.Add(e);
                         }
                     }
@@ -197,8 +225,7 @@ namespace SVS_MAHelpers.Actions.IgnoreMe
                 foreach (var e in cleared)
                 {
                     Plugin.Info($"[IgnoreMe] NPC idx={e.NpcIdx} record retracted at talk start with PC idx={pcIdx} ({e.Reason}).");
-                    try { VanillaRecord.Retract(e.NpcIdx, e.PcIdx, e.NpcUnits, e.PcUnits); }
-                    catch (Exception ex) { Plugin.Log.LogWarning($"[IgnoreMe] Retract idx={e.NpcIdx} failed: {ex.Message}"); }
+                    TryRetract(e);
                 }
             }
             catch (Exception ex) { Plugin.Log.LogWarning($"[IgnoreMe] ClearPairOnTalkStart failed: {ex.Message}"); }
@@ -231,16 +258,22 @@ namespace SVS_MAHelpers.Actions.IgnoreMe
 
         private static void EnforceOne(IgnoreEntry e)
         {
+            // A finished scope waits for a reachable memory/tables. Retry on a
+            // low interval; the entry is only removed after a verified retract.
+            if (e.PendingRetract)
+            {
+                if ((DateTime.UtcNow - e.RetractLastUtc) < RetractRetry) return;
+                TryRetract(e);
+                return;
+            }
             AI? npc = null;
             try { npc = FindAI(e.NpcIdx); } catch { }
             if (npc == null)
             {
-                // AI gone: retract via the chara table if memory is still
-                // reachable, then drop bookkeeping either way.
-                try { VanillaRecord.Retract(e.NpcIdx, e.PcIdx, e.NpcUnits, e.PcUnits); }
-                catch { }
-                lock (_entries) _entries.Remove(e.NpcIdx);
-                Plugin.Info($"[IgnoreMe] NPC idx={e.NpcIdx} gone; ignore record dropped.");
+                // AI gone: mark pending and retract via the chara table when
+                // memory is still reachable; otherwise keep the entry.
+                e.PendingRetract = true;
+                TryRetract(e);
                 return;
             }
             // Cheap poll first: two bools, no scan, no log.
@@ -273,10 +306,9 @@ namespace SVS_MAHelpers.Actions.IgnoreMe
                 if (fresh) Plugin.Info($"[IgnoreMe] NPC idx={e.NpcIdx} is in H (solo={solo} group={group}) without its PC; record kept.");
                 return;
             }
-            lock (_entries) _entries.Remove(e.NpcIdx);
+            e.PendingRetract = true;
             Plugin.Info($"[IgnoreMe] NPC idx={e.NpcIdx} record retracted after {(group ? "group action" : "sex")} with PC idx={e.PcIdx} ({e.Reason}).");
-            try { VanillaRecord.Retract(e.NpcIdx, e.PcIdx, e.NpcUnits, e.PcUnits); }
-            catch (Exception ex) { Plugin.Log.LogWarning($"[IgnoreMe] Retract idx={e.NpcIdx} failed: {ex.Message}"); }
+            TryRetract(e);
         }
 
         // Pick-backstop worker: when the thinker is a recorded NPC and its pick
@@ -293,7 +325,7 @@ namespace SVS_MAHelpers.Actions.IgnoreMe
                 lock (_entries)
                 {
                     if (!_entries.TryGetValue(actorIdx, out e)) return;
-                    if (e == null) return;
+                    if (e == null || e.PendingRetract) return;
                 }
                 if (resultIdx != e.PcIdx) return;
                 resultIdx = -1;
@@ -304,12 +336,24 @@ namespace SVS_MAHelpers.Actions.IgnoreMe
             catch { }
         }
 
-        // Tick watch for the period scope. SimulationManager.mode is the only
-        // period signal available to the tick: a label change retracts every
-        // record. A transition passes through intermediate labels; the first
-        // change does the work and the following ones only re-baseline.
-        // (There are no shift hooks anymore.) First sighting only sets the base.
+        // Tick watch for the period scope. SimulationManager.Mode is the only
+        // period signal available to the tick: a stable-label change retracts
+        // every record. Transitional labels (RoomMorning_SimMorning and the
+        // like) contain '_' and are skipped, so a shift does not retract twice.
+        // First sighting only sets the base. (There are no shift hooks anymore.)
         private static string _lastPeriodLabel = "";
+
+        // A different save object was loaded: old records belong to the previous
+        // save's tables and must not be retracted from the new one.
+        internal static void ResetState()
+        {
+            lock (_entries)
+            {
+                _entries.Clear();
+                _lastPeriodLabel = "";
+            }
+            Plugin.Info("[IgnoreMe] Session state reset for new save.");
+        }
 
         private static void WatchPeriodLabel()
         {
@@ -317,6 +361,7 @@ namespace SVS_MAHelpers.Actions.IgnoreMe
             {
                 string label = Utils.TryReadPeriodLabel();
                 if (string.IsNullOrEmpty(label) || label == "unknown-period") return;
+                if (label.IndexOf('_') >= 0) return; // transitional, not a period
                 bool changed = false;
                 string prev = "";
                 lock (_entries)

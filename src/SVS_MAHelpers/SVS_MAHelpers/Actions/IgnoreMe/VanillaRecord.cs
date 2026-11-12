@@ -170,8 +170,10 @@ namespace SVS_MAHelpers.Actions.IgnoreMe
         }
 
         // Retracts exactly what Record added (floored at 0): per table dict,
-        // count and every answer bucket minus their recorded units.
-        internal static void Retract(int npcIdx, int pcIdx, SideUnits npcUnits, SideUnits pcUnits)
+        // count and every answer bucket minus their recorded units. Returns
+        // false only when memory/tables are unresolvable, so the caller can
+        // keep the bookkeeping and retry instead of losing the units.
+        internal static bool Retract(int npcIdx, int pcIdx, SideUnits npcUnits, SideUnits pcUnits)
         {
             try
             {
@@ -180,7 +182,7 @@ namespace SVS_MAHelpers.Actions.IgnoreMe
                 if (npcMem == null || pcMem == null)
                 {
                     Plugin.Info($"[IgnoreMe] Retract skipped: memory unresolvable (npc={npcIdx} pc={pcIdx}).");
-                    return;
+                    return false;
                 }
                 SaveData.CommandTable? npcActive, pcPassive;
                 try { npcActive = npcMem.activeCommand; } catch { npcActive = null; }
@@ -188,7 +190,7 @@ namespace SVS_MAHelpers.Actions.IgnoreMe
                 if (npcActive == null || pcPassive == null)
                 {
                     Plugin.Info($"[IgnoreMe] Retract skipped: command tables unresolvable (npc={npcIdx} pc={pcIdx}).");
-                    return;
+                    return false;
                 }
                 int touched = RetractSide(npcActive, pcIdx, npcUnits)
                     + RetractSide(pcPassive, npcIdx, pcUnits);
@@ -196,8 +198,13 @@ namespace SVS_MAHelpers.Actions.IgnoreMe
                     Plugin.Info($"[IgnoreMe] Retracted KeepHimAway npc={npcIdx} pc={pcIdx} ({touched} rows).");
                 else
                     Plugin.Info($"[IgnoreMe] Retract npc={npcIdx} pc={pcIdx}: nothing outstanding to remove.");
+                return true;
             }
-            catch (Exception ex) { Plugin.Log.LogWarning($"[IgnoreMe] Retract failed: {ex.Message}"); }
+            catch (Exception ex)
+            {
+                Plugin.Log.LogWarning($"[IgnoreMe] Retract failed: {ex.Message}");
+                return false;
+            }
         }
 
         // Returns how many info rows were actually decremented.

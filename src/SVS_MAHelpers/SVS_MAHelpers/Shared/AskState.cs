@@ -1,7 +1,5 @@
 #nullable enable
 using System;
-using System.Collections.Generic;
-using SV.Chara;
 
 namespace SVS_MAHelpers
 {
@@ -15,7 +13,9 @@ namespace SVS_MAHelpers
     {
         private readonly object _gate = new();
         private DateTime _askUtc = DateTime.MinValue;
-        private HashSet<int>? _charas;
+        private CharaUtil.TalkIdentity? _identity;
+        private int _pcIdx = -1;
+        private int _npcIdx = -1;
         private bool _refused;
         private bool _fired;
         private SaveData.Actor? _pick;
@@ -36,8 +36,8 @@ namespace SVS_MAHelpers
             get { lock (_gate) return _askUtc != DateTime.MinValue && !_fired; }
         }
 
-        /// <summary>Starts a fresh ask; returns the snapshot size (-1 unknown).</summary>
-        internal int Begin()
+        /// <summary>Starts a fresh ask bound to the task owning this action; returns its task count (-1 unknown).</summary>
+        internal int Begin(int actionNo, int npcIdx)
         {
             lock (_gate)
             {
@@ -47,9 +47,26 @@ namespace SVS_MAHelpers
                 _refused = false;
                 _pick = null;
                 _pickSeenUtc = DateTime.MinValue;
-                try { _charas = CharaUtil.SnapshotActiveTalkCharas(); }
-                catch { _charas = null; }
-                return _charas?.Count ?? -1;
+                _pcIdx = -1;
+                _npcIdx = npcIdx;
+                try { _identity = CharaUtil.SnapshotActiveTalkTasks(actionNo, npcIdx); }
+                catch { _identity = null; }
+                if (_identity != null)
+                {
+                    foreach (var t in _identity.Tasks)
+                    {
+                        if (CharaUtil.TryGetTaskPcNpc(t, out int pc, out int npc))
+                        {
+                            _pcIdx = pc;
+                            _npcIdx = npc;
+                            break;
+                        }
+                    }
+                }
+                // No readable task pair: still remember the PC, so the
+                // scenario's NPC can match the owning talk at End.
+                if (_pcIdx < 0) _pcIdx = CharaUtil.PcIndex();
+                return _identity?.Tasks.Count ?? -1;
             }
         }
 
@@ -84,16 +101,90 @@ namespace SVS_MAHelpers
             }
         }
 
-        /// <summary>True when the ending talk was part of this action's ask.</summary>
+        /// <summary>
+        /// True only when the ending talk is the task that owned this ask.
+        /// Reference identity is preferred; an exact ordered pair is the
+        /// fallback for a re-created task. Unknown identity fails closed.
+        /// </summary>
         internal bool MatchesTalk(object? task)
         {
             lock (_gate)
             {
-                if (_charas == null) return true;
-                if (_charas.Count == 0) return false;
-                foreach (int idx in TriggerService.EndingTalkCharas(task))
-                    if (_charas.Contains(idx)) return true;
+                if (_identity == null) return false;
+                var tt = task as SV.Talk.TalkTaskBase;
+                if (tt != null)
+                {
+                    foreach (var t in _identity.Tasks)
+                        if (ReferenceEquals(t, tt)) return true;
+                }
+                var pair = CharaUtil.OrderedPair(tt);
+                if (pair.HasValue)
+                {
+                    foreach (var p in _identity.Pairs)
+                        if (p.A == pair.Value.A && p.B == pair.Value.B) return true;
+                }
+                // Il2CppInterop can hand out a different wrapper for the same
+                // native task, and after-tasks re-create the task. The action's
+                // identified PC+NPC pair is the last, order-independent match.
+                if (_pcIdx >= 0 && _npcIdx >= 0 && CharaUtil.TaskHasPair(tt, _pcIdx, _npcIdx))
+                    return true;
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Drops this ask without firing: used when a different save object is
+        /// loaded, or when the owning talk can no longer be identified.
+        /// </summary>
+        internal void Abort()
+        {
+            lock (_gate)
+            {
+                _generation++;
+                _askUtc = DateTime.MinValue;
+                _identity = null;
+                _pcIdx = -1;
+                _npcIdx = -1;
+                _refused = false;
+                _fired = false;
+                _pick = null;
+                _pickSeenUtc = DateTime.MinValue;
+            }
+        }
+
+        /// <summary>
+        /// Drops this ask when a different talk starts while it is awaiting its
+        /// reply. The owning talk calls Start before its action scenario loads,
+        /// so the owner is never seen here; a later talk carrying either the PC
+        /// or this ask's NPC means the dialogue was taken over (the specified
+        /// hijack: another NPC interrupts and plays another scenario) and the
+        /// pending trigger must not carry into that new dialogue.
+        /// </summary>
+        internal bool AbortIfTalkTookOver(object? task)
+        {
+            lock (_gate)
+            {
+                if (_askUtc == DateTime.MinValue || _fired) return false;
+                var tt = task as SV.Talk.TalkTaskBase;
+                if (tt == null) return false;
+                if (_identity != null)
+                {
+                    foreach (var t in _identity.Tasks)
+                        if (ReferenceEquals(t, tt)) return false;
+                }
+                if (!CharaUtil.TaskHasCharaInPair(tt, _pcIdx)
+                    && !CharaUtil.TaskHasCharaInPair(tt, _npcIdx))
+                    return false;
+                _generation++;
+                _askUtc = DateTime.MinValue;
+                _identity = null;
+                _pcIdx = -1;
+                _npcIdx = -1;
+                _refused = false;
+                _fired = false;
+                _pick = null;
+                _pickSeenUtc = DateTime.MinValue;
+                return true;
             }
         }
 
@@ -147,7 +238,9 @@ namespace SVS_MAHelpers
                 // let the previous handler clear it.
                 if (generation != _generation) return;
                 _askUtc = DateTime.MinValue;
-                _charas = null;
+                _identity = null;
+                _pcIdx = -1;
+                _npcIdx = -1;
                 _refused = false;
                 _fired = false;
                 _pick = null;

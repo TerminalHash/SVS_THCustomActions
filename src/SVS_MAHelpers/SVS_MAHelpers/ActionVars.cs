@@ -41,6 +41,10 @@ namespace SVS_MAHelpers
         internal const int LoveUnderwearActionNo = 509;
         internal const string LoveUnderwearAdvName = "a_509";
 
+        // "Return the panties"
+        internal const int ReturnPantiesActionNo = 510;
+        internal const string ReturnPantiesAdvName = "a_510";
+
         // Fallback map pool for MoveAway when the game's own adjacency data
         // yields nothing usable.
         internal static readonly int[] CandidateMaps =

@@ -65,30 +65,18 @@ namespace SVS_MAHelpers.Actions.Gossip
                 return;
             }
 
-            // Slot order is the vanilla active/passive order (charas[0] is the
-            // initiator — the PC for this action).
-            int activeIdx, passiveIdx;
-            try
+            // The third character is exactly the captured picker value. A
+            // cancelled pick must not fall back to a stale vanilla index.
+            if (picked == null)
             {
-                var ordered = new List<int>();
-                if (participants != null)
-                    foreach (var ai in participants)
-                    {
-                        if (ai == null) continue;
-                        int idx = IdxOf(ai);
-                        if (idx >= 0 && !ordered.Contains(idx)) ordered.Add(idx);
-                        if (ordered.Count >= 2) break;
-                    }
-                if (ordered.Count >= 2) { activeIdx = ordered[0]; passiveIdx = ordered[1]; }
-                else { activeIdx = pcIdx; passiveIdx = askerIdx; }
+                Plugin.Log.LogWarning($"[Gossip] No gossip ({reason}): no third character was picked.");
+                return;
             }
-            catch { activeIdx = pcIdx; passiveIdx = askerIdx; }
-
-            AI? that = ResolveThat(activeIdx, pc, picked);
+            AI? that = ActorToAI(picked);
             int thatIdx = IdxOf(that);
             if (that == null || thatIdx < 0)
             {
-                Plugin.Log.LogWarning($"[Gossip] No gossip ({reason}): no third character was picked.");
+                Plugin.Log.LogWarning($"[Gossip] No gossip ({reason}): picked third character is not live.");
                 return;
             }
             if (thatIdx == pcIdx || thatIdx == askerIdx)
@@ -101,12 +89,25 @@ namespace SVS_MAHelpers.Actions.Gossip
                 Plugin.Log.LogWarning($"[Gossip] No gossip ({reason}): the third character cannot be the PC.");
                 return;
             }
-            // Vanilla valA for this lane is the passive's judgeAnswer.
-            // Best-effort: unreadable yields 0 (vanilla success).
-            int judge = 0;
-            try { judge = asker.charaData.charasGameParam.judgeAnswer; } catch { }
 
-            int written = WriteDidYouHaveH(pc, asker, activeIdx, passiveIdx, thatIdx, judge);
+            // Roles come from the pair, not raw list order: the PC is the
+            // active side (the one who had fun) and the asked NPC is passive.
+            // Its judgeAnswer is the vanilla valA for this lane; an unreadable
+            // value must not become a success-shaped 0 log.
+            int judge;
+            try { judge = asker.charaData.charasGameParam.judgeAnswer; }
+            catch (Exception ex)
+            {
+                Plugin.Log.LogWarning($"[Gossip] No gossip ({reason}): judgeAnswer unreadable ({ex.GetType().Name}).");
+                return;
+            }
+            if (judge < 0 || judge > 2)
+            {
+                Plugin.Log.LogWarning($"[Gossip] No gossip ({reason}): judgeAnswer out of range ({judge}).");
+                return;
+            }
+
+            int written = WriteDidYouHaveH(pc, asker, pcIdx, askerIdx, thatIdx, judge);
             if (written > 0)
                 Plugin.Info($"[Gossip] [{NameOf(asker)}] heard that [{NameOf(pc)}] had fun with [{NameOf(that)}] (log=0x33 to {written}/2 memories, {reason}).");
             else
@@ -144,36 +145,6 @@ namespace SVS_MAHelpers.Actions.Gossip
             }
             catch (Exception ex) { Plugin.Info($"[Gossip] Asker memory write failed: {ex.Message}"); }
             return n;
-        }
-
-        // Third-character resolution, best source first:
-        //   1. the captured picker Actor (the actual player choice);
-        //   2. vanilla source: the ACTIVE talk member's
-        //      thatPersonCharaArrayIndex (what DidYouHaveSexWithThatGuy reads).
-        private static AI? ResolveThat(int activeIdx, AI pc, SaveData.Actor? picked)
-        {
-            try
-            {
-                var pickAI = ActorToAI(picked);
-                if (pickAI != null) return pickAI;
-            }
-            catch (Exception ex) { Plugin.Info($"[Gossip] Pick resolve failed: {ex.Message}"); }
-            try
-            {
-                AI? active = null;
-                try { active = FindAI(activeIdx); } catch { }
-                if (active == null) active = pc;
-                int tIdx = -1;
-                try { tIdx = active.charaData.charasGameParam.thatPersonCharaArrayIndex; } catch { }
-                if (tIdx >= 0)
-                {
-                    AI? ai = null;
-                    try { ai = SV.GameChara.FindCharaAI(tIdx); } catch { }
-                    if (ai != null && !IsPc(ai) && IdxOf(ai) != activeIdx) return ai;
-                }
-            }
-            catch (Exception ex) { Plugin.Info($"[Gossip] thatPerson resolve failed: {ex.Message}"); }
-            return null;
         }
     }
 }

@@ -13,29 +13,13 @@ using SVS_MAHelpers.Actions.MoveAway;
 namespace SVS_MAHelpers
 {
     /// <summary>
-    /// Declarative Harmony entry point: one explicit attribute per game method,
-    /// no reflection loops, and nothing patched twice.
-    ///
-    /// Talk start/end are patched on the <see cref="TalkTaskBase"/> virtuals
-    /// only. The derived tasks call into these base methods — PCActiveTalkTask
-    /// and PCPassiveTalkTask start with a direct call to TalkTaskBase.Start
-    /// (verified in GameAssembly.dll), and every derived End reaches
-    /// TalkTaskBase.End (the only place that removes the task from TalkManager)
-    /// — so the old base+override patch set ran every talk hook twice.
-    ///
-    /// The character picker is read-only: <c>CharaSelect.CloseExeAsync</c> is
-    /// the only seam. Its CloseParameter carries the picked actor (or null for
-    /// a cancel); the plugin stores that value for the pending ask and never
-    /// touches the list UI, its filters or its lifecycle.
-    ///
-    /// The clothing force-NO decision is taken at the answer judge
-    /// (<c>SV.BaseAnswer.Judge</c>), never at a scenario var switch.
-    ///
-    /// Period/day transitions use one shift hook only:
-    /// <c>ShiftFromSimNightToRoomMorning</c> (entering the room) ends the
-    /// day-scoped takes, with the <c>saveData.Day</c> tick as a fallback. The
-    /// period-scoped full strip (507) ends on the <c>SimulationManager.mode</c>
-    /// label watch inside the tick, so no other shift starter is patched.
+    /// Harmony entry point: one explicit patch per game method, nothing patched
+    /// twice. Talk hooks live on the <see cref="TalkTaskBase"/> virtuals, which
+    /// every derived task reaches. The picker is read-only (CloseParameter).
+    /// Custom asks bind on the <c>a_NNN</c> scenario load and die when another
+    /// talk takes over their PC/NPC. Day rollover uses the room-shift hook with
+    /// the <c>saveData.Day</c> tick as fallback; the 507 period uses the
+    /// <c>SimulationManager.Mode</c> watch in the tick.
     /// </summary>
     internal static class Hooks
     {
@@ -65,6 +49,9 @@ namespace SVS_MAHelpers
         {
             try
             {
+                // Drop a pending ask whose dialogue this new talk took over
+                // before any talk-start bookkeeping runs.
+                TriggerService.OnTalkStart(__instance);
                 var participants = SnapshotParticipants(__instance, keepNulls: false);
                 if (participants.Count == 0) return;
                 MoveAwayService.NoteTalkStart(participants);
@@ -96,7 +83,9 @@ namespace SVS_MAHelpers
             {
                 actionNo = __instance.TaskActionNo;
                 participants = SnapshotParticipants(__instance, keepNulls: true);
-                Plugin.Info($"[Hooks] Talk End: task={__instance.GetType().FullName} TaskActionNo={actionNo} charas={participants.Count}");
+                var pair = CharaUtil.OrderedPair(__instance);
+                string pairText = pair.HasValue ? $"{pair.Value.A}->{pair.Value.B}" : "?";
+                Plugin.Info($"[Hooks] Talk End: task={__instance.GetType().FullName} TaskActionNo={actionNo} charas={participants.Count} pair={pairText}");
             }
             catch { }
             __state = new TalkEndState(actionNo, participants);
@@ -131,18 +120,33 @@ namespace SVS_MAHelpers
 
         // -------------------------------------------------------------- scenario
 
+        // Scenario Swap: set the ADVLoader tag before ADVLoader's own
+        // OpenData.Load prefix (priority 200) resolves the tag file. The asset
+        // name is deliberately not rewritten, so the load watch below still
+        // sees the name the game asked for (a_509, no_0, ...).
+        [HarmonyPrefix]
+        [HarmonyPriority(300)]
+        [HarmonyPatch(typeof(ADV.OpenData), nameof(ADV.OpenData.Load), typeof(string), typeof(string))]
+        private static void OpenDataLoadPrefix(string bundle, string asset)
+        {
+            try { ScenarioSwap.OnOpenDataLoad(bundle, asset); }
+            catch (Exception ex) { Plugin.Log.LogWarning($"[Hooks] Scenario swap failed: {ex.Message}"); }
+        }
+
         // One watch for every custom scenario load: trigger arming, ask capture
         // and the refusal watch all share it.
         [HarmonyPostfix]
         [HarmonyPatch(typeof(TextScenario), nameof(TextScenario.LoadFile),
             typeof(string), typeof(string), typeof(bool), typeof(bool), typeof(bool))]
-        private static void LoadFilePostfix(string bundle, string asset)
+        private static void LoadFilePostfix(TextScenario __instance, string bundle, string asset)
         {
             try
             {
                 if (string.IsNullOrEmpty(asset)) return;
 
-                TriggerService.OnScenarioLoad(bundle, asset);
+                SaveData.Actor? heroine = null;
+                try { heroine = __instance?.CurrentHeroine; } catch { }
+                TriggerService.OnScenarioLoad(bundle, asset, heroine);
 
                 if (!RefusalParser.TryParseNoScenario(asset, out int number, out string kind) || number < 0) return;
                 Plugin.Info($"[Refusal] Reply scenario '{asset}' ({kind}, bundle='{bundle}').");
@@ -230,12 +234,12 @@ namespace SVS_MAHelpers
             catch (Exception ex) { Plugin.Log.LogWarning($"[Hooks] SetClothesStateAll hook failed: {ex.Message}"); }
         }
 
-        // Force-NO: the answer judge is the only place that decides YES/NO/難聴.
-        // EachJudgment calls every answer table in turn; only the table that
-        // owns this commandID returns true, so this runs at most once per
-        // judgment and never for unrelated commands. 506/509 are the two
-        // underwear takes that a held pair must refuse; 507 (full strip) is
-        // not an underwear take and is left alone.
+        // Force answers: the answer judge is the only place that decides
+        // YES/NO/難聴. EachJudgment calls every answer table in turn; only the
+        // table that owns this commandID returns true, so this runs at most
+        // once per judgment and never for unrelated commands. 506/509 force NO
+        // when the pair is held today; 510 forces 難聴 when it is not; 507
+        // (full strip) is not an underwear take and is left alone.
         [HarmonyPostfix]
         [HarmonyPatch(typeof(SV.BaseAnswer), nameof(SV.BaseAnswer.Judge))]
         private static void AnswerJudgePostfix(
@@ -245,9 +249,7 @@ namespace SVS_MAHelpers
             bool __result)
         {
             if (!__result) return;
-            if (_commandID != ActionVars.BlackmailUnderwearActionNo
-                && _commandID != ActionVars.LoveUnderwearActionNo) return;
-            try { ClothingService.ForceNoIfHeld(_ansInfo, _ynInfo); }
+            try { ClothingService.AdjustJudge(_commandID, _ansInfo, _ynInfo); }
             catch (Exception ex) { Plugin.Log.LogWarning($"[Hooks] Answer judge hook failed: {ex.Message}"); }
         }
 
