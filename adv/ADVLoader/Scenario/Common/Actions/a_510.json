@@ -1,0 +1,128 @@
+[
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Insistent",
+		"Args": []
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "IF",
+		"Args": ["insistent","0","TRUE","END","デフォルト"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Tag",
+		"Args": ["デフォルト"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "ChangeBundle",
+		"Args": ["MainBundle","2","0"]
+	},
+	{
+		"Version": 0,
+		"Multi": true,
+		"Command": "VAR",
+		"Args": ["System.Int32","judge","-1"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "CharaChange",
+		"Args": ["3"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Switch",
+		"Args": ["NPC_YesNoAnswer","0,YES返答","1,NO返答","2,難聴"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Tag",
+		"Args": ["YES返答"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "CharaChange",
+		"Args": ["2","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Open",
+		"Args": ["MainBundle","chara_item100","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Jump",
+		"Args": ["END"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Tag",
+		"Args": ["NO返答"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "CharaChange",
+		"Args": ["2","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Open",
+		"Args": ["MainBundle","no_0","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Jump",
+		"Args": ["END"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Tag",
+		"Args": ["難聴"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "CharaChange",
+		"Args": ["2","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Open",
+		"Args": ["MainBundle","n_0","TRUE"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Jump",
+		"Args": ["END"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Tag",
+		"Args": ["END"]
+	},
+	{
+		"Version": 0,
+		"Multi": false,
+		"Command": "Close",
+		"Args": []
+	}
+]
