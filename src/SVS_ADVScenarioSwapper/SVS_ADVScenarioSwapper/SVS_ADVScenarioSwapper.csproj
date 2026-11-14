@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net6.0</TargetFramework>
+		<OutputType>Library</OutputType>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+		<Nullable>enable</Nullable>
+		<LangVersion>latest</LangVersion>
+		<RootNamespace>SVS_ADVScenarioSwapper</RootNamespace>
+		<AssemblyName>SVS_ADVScenarioSwapper</AssemblyName>
+	</PropertyGroup>
+	<ItemGroup>
+		<PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be.784" />
+		<PackageReference Include="UnityEngine.Modules" Version="6000.6.0-alpha.5" />
+		<PackageReference Include="IllusionLibs.SamabakeScramble.AllPackages" Version="*" />
+	</ItemGroup>
+</Project>

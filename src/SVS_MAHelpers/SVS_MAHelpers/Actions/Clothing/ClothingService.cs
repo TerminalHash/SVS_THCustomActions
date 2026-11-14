@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using SV.Chara;
+using SVS_ADVScenarioSwapper;
 using static SVS_MAHelpers.CharaUtil;
 
 namespace SVS_MAHelpers.Actions.Clothing
@@ -747,6 +748,7 @@ namespace SVS_MAHelpers.Actions.Clothing
                     int day = Utils.TryReadDay();
                     if (day < 0 || !PantiesLedger.HasHold(npcIdx, day)) return;
                     ForceAnswer(ansInfo, 1, $"[Clothing] Forced NO answer for NPC idx={npcIdx} (PC holds their underwear, day {day}).");
+                    FakeAnswer.Set(npcIdx, false, true);
                 }
                 else if (commandID == ActionVars.ReturnPantiesActionNo
                     && PantiesLedger.GetCount(npcIdx) <= 0)

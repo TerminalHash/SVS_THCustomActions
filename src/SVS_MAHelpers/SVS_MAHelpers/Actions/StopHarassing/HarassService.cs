@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using SV.Chara;
+using SVS_ADVScenarioSwapper;
 using static SVS_MAHelpers.CharaUtil;
 
 namespace SVS_MAHelpers.Actions.StopHarassing
@@ -23,6 +24,90 @@ namespace SVS_MAHelpers.Actions.StopHarassing
             SaveData.LogInfo.LogType.LOG_WEAKNESSES_FLAG;
         private static readonly SaveData.LogInfo.LogCheckTime AllTimeCheck =
             SaveData.LogInfo.LogCheckTime.LOG_IS_SOMETIME;
+
+        // "For all cases": one shared trait judge. Evil refuses almost always,
+        // Selfish refuses less often, and Schemer keeps YES but the trigger
+        // skips the removal. Chances are roll-based, not the vanilla rate.
+        private const int TraitSelfish = 28;
+        private const int TraitSchemer = 31;
+        private const int TraitEvil = 36;
+        private const int EvilNoChance = 95;
+        private const int SelfishNoChance = 40;
+        private const int SchemerFakeChance = 60;
+
+        // Set by the judge at action-menu time and consumed by the 505 trigger.
+        // Only one custom action is judged for one asked NPC at a time.
+        private static int _fakeYesIdx = -1;
+
+        /// <summary>
+        /// Own 505 judge, called from the BaseAnswer.Judge postfix before CGB.
+        /// It ignores the vanilla rate: the trait answer is decided here.
+        /// </summary>
+        internal static void AdjustJudge(int commandID,
+            SV.YesNoJudgeManager.AnswerInfo? ansInfo, SV.YesNoJudgeManager.YesNoInfo? ynInfo)
+        {
+            if (commandID != ActionVars.HarassActionNo || ansInfo == null) return;
+            _fakeYesIdx = -1;
+            try
+            {
+                var asked = ynInfo?.passive;
+                var traits = asked?.gameParameter?.individuality?.answer;
+                if (traits == null) return;
+                int npcIdx = asked!.charasGameParam?.Index ?? -1;
+                if (npcIdx < 0) return;
+
+                if (HasTrait(traits, TraitEvil))
+                {
+                    bool forced = Roll(EvilNoChance);
+                    if (forced) ForceNo(ansInfo);
+                    FakeAnswer.Set(npcIdx, false, forced);
+                    Plugin.Info($"[StopHarass] Judge: Evil NPC idx={npcIdx} -> {(forced ? "NO" : "vanilla")}.");
+                }
+                else if (HasTrait(traits, TraitSchemer))
+                {
+                    bool fake = Roll(SchemerFakeChance);
+                    if (fake) _fakeYesIdx = npcIdx;
+                    FakeAnswer.Set(npcIdx, fake, false);
+                    Plugin.Info($"[StopHarass] Judge: Schemer NPC idx={npcIdx} -> {(fake ? "fake YES" : "vanilla")}.");
+                }
+                else if (HasTrait(traits, TraitSelfish))
+                {
+                    bool forced = Roll(SelfishNoChance);
+                    if (forced) ForceNo(ansInfo);
+                    FakeAnswer.Set(npcIdx, false, forced);
+                    Plugin.Info($"[StopHarass] Judge: Selfish NPC idx={npcIdx} -> {(forced ? "NO" : "vanilla")}.");
+                }
+            }
+            catch (Exception ex) { Plugin.Info($"[StopHarass] Judge failed: {ex.Message}"); }
+        }
+
+        // YesNoJudgeManager.Judge turns ans back into YES for a PC with
+        // additional function 0x16 when rate > 0, so a forced NO zeroes it.
+        private static void ForceNo(SV.YesNoJudgeManager.AnswerInfo ansInfo)
+        {
+            if (ansInfo.ans == 2) return; // never replace 難聴
+            ansInfo.ans = 1;
+            if (ansInfo.rate > 0f) ansInfo.rate = 0f;
+        }
+
+        private static bool Roll(int chance) => UnityEngine.Random.Range(0, 100) < chance;
+
+        private static bool HasTrait(int[] traits, int id)
+        {
+            for (int i = 0; i < traits.Length; i++)
+                if (traits[i] == id) return true;
+            return false;
+        }
+
+        // True once for the asked NPC whose Schemer judge chose a fake YES.
+        private static bool TakeFakeYes(int npcIdx)
+        {
+            if (_fakeYesIdx != npcIdx) return false;
+            _fakeYesIdx = -1;
+            return true;
+        }
+
+        internal static void Reset() => _fakeYesIdx = -1;
 
         internal static void Schedule(List<AI>? participants, string reason, AskState ask)
         {
@@ -53,15 +138,21 @@ namespace SVS_MAHelpers.Actions.StopHarassing
             var asker = npcTargets[0];
             int askerIdx = IdxOf(asker);
             if (askerIdx < 0) return;
+            bool fakeYes = TakeFakeYes(askerIdx);
             Plugin.Info($"[StopHarass] Participants: {DescribeAll(participants)}");
 
-            // Refused ask: a NO-reply scenario played inside THIS talk.
-            // (Deliberately no judgeAnswer gate: the 505 judge always yields its
-            // default Rate 0 / Answer 1, so gating on it would abort every
-            // removal; the in-talk NO-scenario is the real refusal signal.)
+            // Refused ask: a NO-reply scenario played inside THIS talk. The trait
+            // judge already ran on BaseAnswer.Judge and either forced NO (Evil /
+            // Selfish) or marked a fake YES (Schemer); this gate only reads the
+            // dialogue branch that actually played.
             if (refused)
             {
                 Plugin.Info($"[StopHarass] No removal ({reason}): refused (NO scenario played).");
+                return;
+            }
+            if (fakeYes)
+            {
+                Plugin.Info($"[StopHarass] No removal ({reason}): Schemer gave a fake YES.");
                 return;
             }
 

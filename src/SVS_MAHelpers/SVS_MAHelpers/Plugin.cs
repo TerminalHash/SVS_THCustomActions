@@ -16,27 +16,26 @@ namespace SVS_MAHelpers
     // and a wrong name would silently prevent loading.
     [BepInPlugin(GUID, PLUGIN_NAME, VERSION)]
     [BepInDependency(ActionVars.MoreActionsGuid, BepInDependency.DependencyFlags.HardDependency)]
+    [BepInDependency(ScenarioSwapperGuid, BepInDependency.DependencyFlags.HardDependency)]
     [BepInDependency(AdditionalDataStore.PluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
     public class Plugin : BasePlugin
     {
         public const string PLUGIN_NAME = "SVS_MAHelpers";
-        public const string COPYRIGHT = "Copyright ©  2026";
+        public const string COPYRIGHT = "Copyright © TerminalHash 2026";
         public const string COMPANY = "SVS_MAHelpers";
 
-        public const string GUID = "org.svs.mahelpers";
-        public const string VERSION = "2.0.0";
+        public const string GUID = "th.SVS.MAHelpers";
+        public const string VERSION = "2.1.0";
+
+        // The universal scenario-variant feature is shipped/installed with the
+        // helpers; it in turn hard-requires ADVLoader.
+        public const string ScenarioSwapperGuid = "th.SVS.ADVScenarioSwapper";
 
         internal static new ManualLogSource Log = null!;
 
+        // configuration entries
         public static ConfigEntry<bool> VerboseLog = null!;
-
-        // Debug-only, specified by the IgnoreMe logic doc: starting a talk with
-        // the ignoring NPC retracts the record (talks run untouched either way).
         public static ConfigEntry<bool> ClearOnTalkStart = null!;
-
-        // Scenario Swap test setting from the plugin doc. Enables the numeric
-        // _traitxxx variant suffix for traits that have no hardcoded suffix.
-        public static ConfigEntry<bool> UseTraitSuffix = null!;
 
         public override void Load()
         {
@@ -45,8 +44,6 @@ namespace SVS_MAHelpers
             VerboseLog = Config.Bind("Logging", "Debug log", false, "Toggle additional lines for debug purpose.");
             ClearOnTalkStart = Config.Bind("Behavior", "Clear on dialogue start", false,
                 "Debug-only: when true, starting a talk with the ignoring NPC retracts the ignore record.");
-            UseTraitSuffix = Config.Bind("Behavior", "Use scenarios with suffix _traitxxx", false,
-                "For quick tests of unique dialogue lines or using non-hardcoded trait lines");
 
             try { Hooks.PatchAll(); }
             catch (Exception ex) { Log.LogWarning($"[Hooks] Setup failed: {ex}"); }
@@ -72,11 +69,12 @@ namespace SVS_MAHelpers
                 SaveGeneration.Register(PantiesLedger.Reset);
                 SaveGeneration.Register(IgnoreService.ResetState);
                 SaveGeneration.Register(MoveAwayService.ResetState);
+                SaveGeneration.Register(HarassService.Reset);
                 SaveGeneration.Register(TriggerService.ResetAsks);
             }
             catch (Exception ex) { Log.LogWarning($"[Save] Reset registration failed: {ex}"); }
 
-            Info($"{PLUGIN_NAME} v{VERSION} loaded. Actions: 503/504/505/506/507/508/509/510 (502 reserved).");
+            Info($"{PLUGIN_NAME} v{VERSION} loaded. Actions: 503/504/505/506/507/508/509/510");
         }
 
         private static void RegisterTriggers()
